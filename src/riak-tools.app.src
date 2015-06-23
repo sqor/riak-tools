@@ -1,0 +1,13 @@
+{application, riak-tools, [
+	{description, ""},
+	{vsn, "0.1.0"},
+	{id, "git"},
+	{modules, []},
+	{mod, {riak-tools,[]}},
+	{registered, []},
+	{applications, [
+		kernel,
+		stdlib,
+		erlexec
+	]}
+]}.
