@@ -6,27 +6,20 @@
 -define('VERSION',              "1.0.0").
 -define('ACCESS_KEY',           "AAAAAAAAAAAAAAAAAAAAA").
 -define('SECRET_ACCESS_KEY',    "XXXXXXXXXXXXXXXXXXXXX").
--define('BUCKET',               "sqor-stage-bkup").
+-define('S3_BUCKET',            "my-s3-bucket").
 -define('RIAK_DB',              ["/etc/riak","/var/lib/riak"]).
 -define('CHUNK_SIZE',           (15 * 1024 * 1024)).
 -define('RIAK_RUNNING',         "riak is running").
-%-define('RIAK_RUNNING',         "such file").
 -define('RIAK_STOPPED',         "riak is stopped").
--define('ELB',                  "SQOR-RIAK-PROD-VPC").
--define('BACKUP_DIR',           "/backup").
-%-define('RIAK_STOPPED',         "such file").
-
-%-include_lib("erlcloud.hrl").
-%-include_lib("erlcloud_aws.hrl").
-
-%-import(erlcloud_xml, [get_text/2]).
+-define('AWS_ELB',              "my-elb").
+-define('BACKUP_DIR',           ".").
 
 -define (USAGE_TEMPLATE, "usage: riak-tools [backup|get|elb-register|elb-deregister|riak-start|riak-stop]~n").
 -define (USAGE_DATA, []).
 
 backup_script() ->
-    io:format("~s backup dir=~p ~n", [ts(),?BACKUP_DIR]),
-    file:set_cwd(?BACKUP_DIR),
+    io:format("~s backup dir=~p ~n", [ts(),yaml_get("BACKUP_DIR",?BACKUP_DIR)]),
+    file:set_cwd(yaml_get("BACKUP_DIR",?BACKUP_DIR)),
     io:format("~s pwd=~p ~n", [ts(),file:get_cwd()]),
     assert_elb(),
     TGZName = get_gzip_name(),
@@ -55,16 +48,16 @@ start_riak() ->
 
 register_with_elb() ->
     I = get_instanceid(),
-    io:format("~s register elb=~s InstanceId=~s ~n", [ts(), ?ELB, I]),
-    erlcloud_elb:configure(?ACCESS_KEY, ?SECRET_ACCESS_KEY),
-    R = erlcloud_elb:register_instance(?ELB,I),
+    io:format("~s register elb=~s InstanceId=~s ~n", [ts(), yaml_get("AWS_ELB",?AWS_ELB), I]),
+    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    R = erlcloud_elb:register_instance(yaml_get("AWS_ELB",?AWS_ELB),I),
     io:format("~s register reply=~p ~n", [ts(), R]).
 
 deregister_with_elb() ->
     I = get_instanceid(),
-    io:format("~s deregister elb=~s InstanceId=~s ~n", [ts(), ?ELB, I]),
-    erlcloud_elb:configure(?ACCESS_KEY, ?SECRET_ACCESS_KEY),
-    R = erlcloud_elb:deregister_instance(?ELB,I),
+    io:format("~s deregister elb=~s InstanceId=~s ~n", [ts(), yaml_get("AWS_ELB",?AWS_ELB), I]),
+    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    R = erlcloud_elb:deregister_instance(yaml_get("AWS_ELB",?AWS_ELB),I),
     io:format("~s deregister reply=~p ~n", [ts(), R]).
 
 get_instanceid() ->
@@ -99,7 +92,7 @@ status_running(S) ->
 
 assert_elb() ->
     % Validate this instance is registered to the ELB.
-    erlcloud_elb:configure(?ACCESS_KEY, ?SECRET_ACCESS_KEY),
+    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
     R = erlcloud_elb:describe_load_balancer("SQOR-RIAK-DEV-VPC"),
     ELB = lists:flatten(io_lib:format("~p", [R])),
     I = get_instanceid(),
@@ -182,11 +175,11 @@ s3_small_upload(Key, File) ->
     s3_upload_single(Key, Binary).
 
 s3_upload_single(Key, Value) ->
-    A = erlcloud_s3:configure(?ACCESS_KEY, ?SECRET_ACCESS_KEY),
+    A = erlcloud_s3:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
     error_logger:info_msg("~p:~p Settng up AWS ~p to S3 ~n", 
               [?MODULE, ?LINE, A]),
-    %R = erlcloud_s3:put_object(?BUCKET, Key, Value, [], [{"Content-type", "application/x-gzip"}]),
-    R = erlcloud_s3:put_object(?BUCKET, Key, Value),
+    %R = erlcloud_s3:put_object(yaml_get("S3_BUCKET",?S3_BUCKET), Key, Value, [], [{"Content-type", "application/x-gzip"}]),
+    R = erlcloud_s3:put_object(yaml_get("S3_BUCKET",?S3_BUCKET), Key, Value),
 
     error_logger:info_msg("~p:~p Uploaded File ~p to S3 ~n", [?MODULE, ?LINE, R]),
     {ok, R}.
@@ -204,26 +197,26 @@ read_file(IoDevice,Count) ->
     end.
 
 multipart_upload(Key, IoDevice, Config, Count) ->
-    erlcloud_s3:configure(?ACCESS_KEY, ?SECRET_ACCESS_KEY),
-    {_,[{_,UploadId}]} = erlcloud_s3:start_multipart(?BUCKET, Key),
+    erlcloud_s3:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    {_,[{_,UploadId}]} = erlcloud_s3:start_multipart(yaml_get("S3_BUCKET",?S3_BUCKET), Key),
     io:format("~s S3 UploadId=~p ~n", [ts(), UploadId]),
     upload_parts(Key, IoDevice, UploadId, Config, 1, Count, []).
 
 upload_parts(Key, _IoDevice, UploadId, _Config, PartCount, 0, Parts) ->
     io:format("~s S3 Multipart Complete. S3Key=~p PartCount=~p ~n", [ts(), Key,PartCount]),
-    A = erlcloud_s3:complete_multipart(?BUCKET, Key, UploadId, lists:reverse(Parts)),
+    A = erlcloud_s3:complete_multipart(yaml_get("S3_BUCKET",?S3_BUCKET), Key, UploadId, lists:reverse(Parts)),
     {ok,A};
 upload_parts(Key, _Device, UploadId, _Config, PartCount, -1, _Parts) ->
     io:format("~s Error. S3 Abort Multipart. S3Key=~p Part=~p ~n", [ts(), Key,PartCount]),
-    A = erlcloud_s3:abort_multipart(?BUCKET, Key, UploadId),
+    A = erlcloud_s3:abort_multipart(yaml_get("S3_BUCKET",?S3_BUCKET), Key, UploadId),
     {err,A};
 upload_parts(Key, IoDevice, UploadId, Config, PartCount, Count, Parts) ->
     io:format("~s S3 upload_part. S3Key=~p Part=~p ~n", [ts(), Key,PartCount]),
     case file:read(IoDevice, Count) of
         {ok,Data} ->
             %error_logger:info_msg("OK ~n"),
-            %A = erlcloud_s3:upload_part(?BUCKET, Key, UploadId, PartCount, Data),
-            A = s3_part_retry(?BUCKET, Key, UploadId, PartCount, Data, 5),
+            %A = erlcloud_s3:upload_part(yaml_get("S3_BUCKET",?S3_BUCKET), Key, UploadId, PartCount, Data),
+            A = s3_part_retry(yaml_get("S3_BUCKET",?S3_BUCKET), Key, UploadId, PartCount, Data, 5),
             {ok,[{etag,PartEtag}]} = A,
             upload_parts(Key, IoDevice, UploadId, Config, PartCount + 1, Count, [{PartCount, PartEtag} | Parts]);
         eof ->
@@ -234,17 +227,17 @@ upload_parts(Key, IoDevice, UploadId, Config, PartCount, Count, Parts) ->
             upload_parts(Key, IoDevice, UploadId, Config, PartCount + 1, -1, Parts)
     end.
 
-s3_part_retry(Bucket, Key, UploadId, PartCount, Data, 0) ->
-    erlcloud_s3:upload_part(Bucket, Key, UploadId, PartCount, Data);
-s3_part_retry(Bucket, Key, UploadId, PartCount, Data, RetriesLeft) ->
-    R = erlcloud_s3:upload_part(Bucket, Key, UploadId, PartCount, Data),
+s3_part_retry(S3_BUCKET, Key, UploadId, PartCount, Data, 0) ->
+    erlcloud_s3:upload_part(S3_BUCKET, Key, UploadId, PartCount, Data);
+s3_part_retry(S3_BUCKET, Key, UploadId, PartCount, Data, RetriesLeft) ->
+    R = erlcloud_s3:upload_part(S3_BUCKET, Key, UploadId, PartCount, Data),
     case R of
         % handle socket timeout
         {error,{socket_error,timeout}} ->
             io:format("catch: error: {error,{socket_error,timeout}} ~n"), % dbg only
             % retry sending message, after 1 second
             timer:sleep(1000),
-            s3_part_retry(Bucket, Key, UploadId, PartCount, Data, RetriesLeft - 1);
+            s3_part_retry(S3_BUCKET, Key, UploadId, PartCount, Data, RetriesLeft - 1);
         {ok,_} ->
             R;
         _ ->
@@ -283,10 +276,24 @@ file_link_targets(Src,TargetList) ->
 %
 s3_get(Key) ->
     io:format("s3get key=~p ~n", [Key]),
-    erlcloud_s3:configure(?ACCESS_KEY, ?SECRET_ACCESS_KEY),
-    R = erlcloud_s3:get_object(?BUCKET, Key),
+    erlcloud_s3:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    R = erlcloud_s3:get_object(yaml_get("S3_BUCKET",?S3_BUCKET), Key),
     {content,Data} = lists:keyfind(content,1,R),
     file:write_file(Key, Data).
+
+yaml_get(Key) ->
+    io:format("~s get yaml key=~p ~n", [ts(), Key]),
+    [Yaml] = yamerl_constr:file(".riak-tools.yaml"),
+    YamlDict = dict:from_list(Yaml),
+    {ok,Value} = dict:find(Key,YamlDict),
+    Value.
+
+yaml_get(Key,Default) ->
+  try yaml_get(Key) of
+    Value -> Value
+  catch
+    _:_ -> Default
+  end.
 
 handle_backup([]) ->
     io:format("~s start riak leveldb backup host=~p ~n", [ts(), hostname()]),
@@ -302,15 +309,19 @@ handle_get([Arg|Args]) ->
     s3_get(Arg).
 
 handle_status() ->
-    R = riak_status(),
-    io:format("Status ~p ~n", [R]),
-    I = get_instanceid(),
-    io:format("InstanceId ~p ~n", [I]),
-    assert_elb().
+    os:cmd("chmod 0600 .riak-tools.yaml"),
+    Key = "S3_BUCKETX",
+    Value = yaml_get(Key,?S3_BUCKET),
+    io:format("Yaml ~p ~n", [Value]).
+    %R = riak_status(),
+    %io:format("Status ~p ~n", [R]),
+    %I = get_instanceid(),
+    %io:format("InstanceId ~p ~n", [I]),
+    %assert_elb().
 
 handle_elb() ->
-    erlcloud_elb:configure(?ACCESS_KEY, ?SECRET_ACCESS_KEY),
-    R = erlcloud_elb:describe_load_balancer(?ELB),
+    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    R = erlcloud_elb:describe_load_balancer(yaml_get("AWS_ELB",?AWS_ELB)),
     ELB = lists:flatten(io_lib:format("~p", [R])),
     I = get_instanceid(),
     io:format("InstanceId ~s ~n", [I]),
@@ -326,6 +337,8 @@ main([]) ->
 main([MapType|Args]) ->
     ssl:start(),
     erlcloud:start(),
+    application:start(yamerl),
+    os:cmd("chmod 0600 .riak-tools.yaml"),
     case MapType of
         "backup" ->
             handle_backup(Args);
