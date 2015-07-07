@@ -49,14 +49,14 @@ start_riak() ->
 register_with_elb() ->
     I = get_instanceid(),
     io:format("~s register elb=~s InstanceId=~s ~n", [ts(), yaml_get("AWS_ELB",?AWS_ELB), I]),
-    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRET_ACCESS_KEY",?SECRET_ACCESS_KEY)),
     R = erlcloud_elb:register_instance(yaml_get("AWS_ELB",?AWS_ELB),I),
     io:format("~s register reply=~p ~n", [ts(), R]).
 
 deregister_with_elb() ->
     I = get_instanceid(),
     io:format("~s deregister elb=~s InstanceId=~s ~n", [ts(), yaml_get("AWS_ELB",?AWS_ELB), I]),
-    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRET_ACCESS_KEY",?SECRET_ACCESS_KEY)),
     R = erlcloud_elb:deregister_instance(yaml_get("AWS_ELB",?AWS_ELB),I),
     io:format("~s deregister reply=~p ~n", [ts(), R]).
 
@@ -92,7 +92,7 @@ status_running(S) ->
 
 assert_elb() ->
     % Validate this instance is registered to the ELB.
-    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRET_ACCESS_KEY",?SECRET_ACCESS_KEY)),
     R = erlcloud_elb:describe_load_balancer("SQOR-RIAK-DEV-VPC"),
     ELB = lists:flatten(io_lib:format("~p", [R])),
     I = get_instanceid(),
@@ -175,7 +175,7 @@ s3_small_upload(Key, File) ->
     s3_upload_single(Key, Binary).
 
 s3_upload_single(Key, Value) ->
-    A = erlcloud_s3:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    A = erlcloud_s3:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRET_ACCESS_KEY",?SECRET_ACCESS_KEY)),
     error_logger:info_msg("~p:~p Settng up AWS ~p to S3 ~n", 
               [?MODULE, ?LINE, A]),
     %R = erlcloud_s3:put_object(yaml_get("S3_BUCKET",?S3_BUCKET), Key, Value, [], [{"Content-type", "application/x-gzip"}]),
@@ -197,7 +197,7 @@ read_file(IoDevice,Count) ->
     end.
 
 multipart_upload(Key, IoDevice, Config, Count) ->
-    erlcloud_s3:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    erlcloud_s3:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRET_ACCESS_KEY",?SECRET_ACCESS_KEY)),
     {_,[{_,UploadId}]} = erlcloud_s3:start_multipart(yaml_get("S3_BUCKET",?S3_BUCKET), Key),
     io:format("~s S3 UploadId=~p ~n", [ts(), UploadId]),
     upload_parts(Key, IoDevice, UploadId, Config, 1, Count, []).
@@ -276,7 +276,7 @@ file_link_targets(Src,TargetList) ->
 %
 s3_get(Key) ->
     io:format("s3get key=~p ~n", [Key]),
-    erlcloud_s3:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    erlcloud_s3:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRET_ACCESS_KEY",?SECRET_ACCESS_KEY)),
     R = erlcloud_s3:get_object(yaml_get("S3_BUCKET",?S3_BUCKET), Key),
     {content,Data} = lists:keyfind(content,1,R),
     file:write_file(Key, Data).
@@ -320,7 +320,7 @@ handle_status() ->
     %assert_elb().
 
 handle_elb() ->
-    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRECT_ACCESS_KEY",?SECRET_ACCESS_KEY)),
+    erlcloud_elb:configure(yaml_get("ACCESS_KEY",?ACCESS_KEY), yaml_get("SECRET_ACCESS_KEY",?SECRET_ACCESS_KEY)),
     R = erlcloud_elb:describe_load_balancer(yaml_get("AWS_ELB",?AWS_ELB)),
     ELB = lists:flatten(io_lib:format("~p", [R])),
     I = get_instanceid(),
