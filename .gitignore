@@ -1,12 +1,9 @@
-riak-tools
+_build
+rebar.lock
+riak_tools
 TAGS
-tags
-deps
 rel/sqormq*
 priv/*.so
-logs
-ebin
-log
 *.o
 *.beam
 *.dump

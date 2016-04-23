@@ -1,9 +1,9 @@
-{application, riak-tools, [
+{application, riak_tools, [
 	{description, ""},
 	{vsn, "0.1.0"},
 	{id, "git"},
 	{modules, []},
-	{mod, {riak-tools,[]}},
+	{mod, {riak_tools,[]}},
 	{registered, []},
 	{applications, [
 		kernel,

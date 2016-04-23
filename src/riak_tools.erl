@@ -1,4 +1,4 @@
--module('riak-tools').
+-module('riak_tools').
 
 %-export([file_link/2, file_link_targets/2, main/1, backup_script/0, multipart_upload/4, s3_upload/2, read_file/2, tar/1, tar/2, tar_riakdb/0, s3_small_upload/2, get_gzip_name/0, get_month_name/0, get_weekly_name/0, get_wday_name/0]).
 -compile(export_all). 
