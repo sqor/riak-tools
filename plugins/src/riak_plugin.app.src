@@ -1,0 +1,12 @@
+{application, riak_plugin, [
+	{description, ""},
+	{vsn, "0.1.0"},
+	{id, "git"},
+	{modules, [erlcloud,lhttpc]},
+	{mod, {s3update,[]}},
+	{registered, []},
+	{applications, [
+		kernel,
+		stdlib
+	]}
+]}.
